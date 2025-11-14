@@ -1,2 +1,20 @@
+# Dependencias de Node
 node_modules/
+
+# Bases de datos y archivos temporales de SQLite
 *.db
+*.db-journal
+
+# Variables de entorno (¡MUY IMPORTANTE!)
+# No subir nunca los secretos al repositorio
+.env
+
+# Archivos de logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+
+# Archivos de sistema operativo (macOS y Windows)
+.DS_Store
+Thumbs.db
