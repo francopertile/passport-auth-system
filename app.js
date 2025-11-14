@@ -10,14 +10,14 @@ import SQLiteStore from 'connect-sqlite3' // Para sesiones en DB
 
 // Configuración local
 import { PORT, SECRET_JWT_KEY, NODE_ENV } from './config.js'
-// import db from './src/db.js' // Descomentaremos cuando usemos el 'store'
+// import db from './src/db.js' // Ya no es necesario aquí
 
 // Middlewares de seguridad
 import { csrfProtection } from './src/middlewares/security.js'
 
 // --- Próximos pasos: Importar Rutas ---
 // import adminRoutes from './src/routes/admin.js'
-// import authRoutes from './src/routes/auth.js'
+import authRoutes from './src/routes/auth.js' // <--- AÑADE ESTA LÍNEA
 
 // Inicialización de la app
 const app = express()
@@ -56,14 +56,7 @@ app.use(csrfProtection)
 
 // --- 4. Rutas (se implementarán en próximos commits) ---
 // app.use('/admin', adminRoutes);
-// app.use('/', authRoutes);
-
-// Ruta de prueba temporal (mientras no tenemos rutas)
-app.get('/', (req, res) => {
-  console.log('Usuario en sesión (si existe):', req.session.user)
-  // (Req: CSRF) Enviamos el token para que los formularios puedan usarlo
-  res.send(`Servidor funcionando. Tu CSRF Token es: ${req.csrfToken()}`)
-})
+app.use('/', authRoutes); // <--- AÑADE ESTA LÍNEA
 
 // --- 5. Manejador de Errores ---
 app.use((err, req, res, next) => {
@@ -71,7 +64,8 @@ app.use((err, req, res, next) => {
 
   // (Req: CSRF) Manejo de error específico para tokens CSRF inválidos
   if (err.code === 'EBADCSRFTOKEN') {
-    return res.status(403).send('CSRF token inválido. Refresque la página.')
+    // (Req: XSS) El escape se hará en la vista
+    return res.status(403).render('acceso-denegado', { csrfToken: req.csrfToken() })
   }
 
   res.status(500).send('Algo salió mal en el servidor.')
