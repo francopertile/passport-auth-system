@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Auth System - Login</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    /* Estilo simple dark-mode como en el ejemplo de ortiz-ivan */
+    body { background-color: #121212; color: #eaeaea; }
+    .card { background-color: #1e1e1e; border: 1px solid #2c2c2c; }
+    .form-control { background-color: #2b2b2b; border: 1px solid #444; color: #fff; }
+    .form-control::placeholder { color: #aaa; }
+    .form-control:focus { background-color: #2b2b2b; border-color: #0d6efd; color: #fff; box-shadow: none; }
+  </style>
+</head>
+<body class="d-flex flex-column min-vh-100">
+
+  <nav class="navbar navbar-expand-lg navbar-dark bg-black shadow-sm">
+    <div class="container">
+      <a class="navbar-brand fw-bold" href="/">Auth System</a>
+      <% if (username) { %>
+        <div class="d-flex">
+          <button id="logoutBtn" class="btn btn-outline-light ms-3">Cerrar sesión</button>
+        </div>
+      <% } %>
+    </div>
+  </nav>
+
+  <main class="container d-flex flex-column align-items-center justify-content-center flex-grow-1 py-5">
+    <div class="card shadow-lg w-100" style="max-width: 600px;">
+      <div class="card-body p-5">
+
+        <% if (!username) { %>
+          <h2 class="text-center mb-4 fw-bold text-light">Bienvenido</h2>
+          <div class="row">
+            <div class="col-md-6 border-end border-secondary">
+              <h5 class="mb-3 text-primary">Iniciar sesión</h5>
+              <form id="loginForm">
+                <div class="mb-3">
+                  <label class="form-label">Modo de sesión</label>
+                  <div>
+                    <div class="form-check form-check-inline">
+                      <input class="form-check-input" type="radio" name="authMode" id="modeCookie" value="cookie" checked>
+                      <label class="form-check-label" for="modeCookie">Cookie (Sesión)</label>
+                    </div>
+                    <div class="form-check form-check-inline">
+                      <input class="form-check-input" type="radio" name="authMode" id="modeJwt" value="jwt">
+                      <label class="form-check-label" for="modeJwt">JWT (Stateless)</label>
+                    </div>
+                  </div>
+                </div>
+                 <div class="mb-3">
+                   <input type="email" id="loginEmail" class="form-control" placeholder="Correo" required>
+                 </div>
+                 <div class="mb-3">
+                   <input type="password" id="loginPass" class="form-control" placeholder="Contraseña" required>
+                 </div>
+                 <button type="submit" class="btn btn-primary w-100">Entrar</button>
+               </form>
+             </div>
+
+            <div class="col-md-6">
+              <h5 class="mb-3 text-success">Registrarse</h5>
+              <form id="registerForm">
+                <div class="mb-3">
+                  <input type="text" id="regUser" class="form-control" placeholder="Usuario" required>
+                </div>
+                <div class="mb-3">
+                  <input type="email" id="regEmail" class="form-control" placeholder="Correo" required>
+                </div>
+                <div class="mb-3">
+                  <input type="password" id="regPass" class="form-control" placeholder="Contraseña" required>
+                </div>
+                <button type="submit" class="btn btn-success w-100">Registrar</button>
+              </form>
+            </div>
+          </div>
+
+        <% } else { %>
+          <h2 class="text-center mb-4 fw-bold text-light">Hola, <%= username %></h2>
+          <p class="text-center">Has iniciado sesión correctamente.</p>
+
+          <div class="d-grid gap-3">
+            <button id="protectedBtn" class="btn btn-primary btn-lg">Zona Protegida (Solo Admin)</button>
+            <% if (role === 'admin') { %>
+              <button id="adminBtn" class="btn btn-danger btn-lg">Panel de Administración</button>
+            <% } %>
+          </div>
+        <% } %>
+
+        <div id="message" class="alert mt-4 d-none"></div>
+
+      </div>
+    </div>
+  </main>
+
+  <footer class="bg-black text-muted text-center py-3 mt-auto">
+    <small>Auth System Challenge</small>
+  </footer>
+
+  <script>
+    const csrfToken = '<%= csrfToken %>';
+  </script>
+  <script src="/js/app.js" defer></script>
+</body>
+</html>
