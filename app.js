@@ -10,14 +10,13 @@ import SQLiteStore from 'connect-sqlite3' // Para sesiones en DB
 
 // Configuración local
 import { PORT, SECRET_JWT_KEY, NODE_ENV } from './config.js'
-// import db from './src/db.js' // Ya no es necesario aquí
 
 // Middlewares de seguridad
 import { csrfProtection } from './src/middlewares/security.js'
 
-// --- Próximos pasos: Importar Rutas ---
-// import adminRoutes from './src/routes/admin.js'
-import authRoutes from './src/routes/auth.js' // <--- AÑADE ESTA LÍNEA
+// --- Importar Rutas ---
+import adminRoutes from './src/routes/admin.js' // <--- AÑADIDO
+import authRoutes from './src/routes/auth.js'
 
 // Inicialización de la app
 const app = express()
@@ -54,9 +53,10 @@ app.use(session({
 // ¡Importante! csurf DEBE ir después de session y cookieParser.
 app.use(csrfProtection)
 
-// --- 4. Rutas (se implementarán en próximos commits) ---
-// app.use('/admin', adminRoutes);
-app.use('/', authRoutes); // <--- AÑADE ESTA LÍNEA
+// --- 4. Rutas ---
+// (Req: RBAC) Rutas de admin, prefijadas con /admin
+app.use('/admin', adminRoutes); // <--- AÑADIDO
+app.use('/', authRoutes);
 
 // --- 5. Manejador de Errores ---
 app.use((err, req, res, next) => {
