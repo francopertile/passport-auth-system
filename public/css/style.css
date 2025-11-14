@@ -1,0 +1,23 @@
+/* public/css/style.css */
+
+/*
+ * Estilos personalizados que complementan a Bootstrap
+ * y demuestran el uso de la carpeta 'public'.
+ */
+
+/* Un estilo sutil para el card principal en modo oscuro */
+.card.shadow-lg {
+  border-radius: 1rem !important;
+}
+
+/* Un estilo para el botón de admin en la página de inicio */
+#adminBtn {
+  /* Un rojo más distintivo para la acción de admin */
+  background-color: #dc3545;
+  border-color: #dc3545;
+}
+
+#adminBtn:hover {
+  background-color: #c82333;
+  border-color: #bd2130;
+}
