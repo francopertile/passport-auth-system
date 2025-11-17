@@ -1,16 +1,17 @@
 // src/routes/admin.js
 import express from 'express'
 import { UserRepository } from '../models/user-repository.js'
-import { authenticate, authorize } from '../middlewares/security.js'
+// AÑADIDO: Importar csrfProtection
+import { authenticate, authorize, csrfProtection } from '../middlewares/security.js'
 
 const router = express.Router()
 
 // (Req: RBAC)
 // Aplicamos middlewares a TODAS las rutas en este archivo.
-// 1. 'authenticate': Asegura que el usuario esté logueado (cookie JWT válida).
-// 2. 'authorize(['admin'])': Asegura que el rol del usuario sea 'admin'.
 router.use(authenticate)
 router.use(authorize(['admin']))
+// AÑADIDO: Aplicamos la protección CSRF a todo el router de admin
+router.use(csrfProtection)
 
 // (Req: RBAC)
 // GET /admin/users: Muestra el panel de administración de usuarios.

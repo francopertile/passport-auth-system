@@ -36,7 +36,7 @@ document.addEventListener('DOMContentLoaded', () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'CSRF-Token': CSRF_TOKEN // (Req: CSRF)
+          'x-csrf-token': CSRF_TOKEN // FIX: Nombre de cabecera correcto
         },
         body: JSON.stringify({ username, email, password })
       });
@@ -67,7 +67,7 @@ document.addEventListener('DOMContentLoaded', () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'CSRF-Token': CSRF_TOKEN // (Req: CSRF)
+          'x-csrf-token': CSRF_TOKEN // FIX: Nombre de cabecera correcto
         },
         body: JSON.stringify({ email, password })
       });
@@ -88,15 +88,7 @@ document.addEventListener('DOMContentLoaded', () => {
         localStorage.setItem('accessToken', data.accessToken);
         localStorage.setItem('refreshToken', data.refreshToken);
         
-        // El proyecto de ortiz-ivan tenía un paso extra '/set-jwt-cookie'.
-        // Lo simplificamos: el flujo 'login-jwt' es SOLO para clientes
-        // 'stateless' que guardan el token ellos mismos.
-        // El flujo 'cookie' (que también usa JWTs) es para el navegador.
-        
         showMessage('Login (JWT) exitoso. Este token se guardaría en el cliente.', false);
-        // En una app real (SPA), aquí guardarías el token y actualizarías la UI.
-        // Para este demo, solo recargamos para que el servidor
-        // detecte el login (si usamos el flujo 'cookie').
         
         // Para este proyecto, forzamos recarga en ambos casos.
         window.location.reload();
@@ -112,7 +104,7 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       await fetch('/logout', {
         method: 'POST',
-        headers: { 'CSRF-Token': CSRF_TOKEN } // (Req: CSRF)
+        headers: { 'x-csrf-token': CSRF_TOKEN } // FIX: Nombre de cabecera correcto
       });
       window.location.href = '/'; // Redirigir al inicio
     } catch (err) {
@@ -125,7 +117,7 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const res = await fetch('/refresh', {
         method: 'POST',
-        headers: { 'CSRF-Token': CSRF_TOKEN } // (Req: CSRF)
+        headers: { 'x-csrf-token': CSRF_TOKEN } // FIX: Nombre de cabecera correcto
       });
 
       if (res.ok) {

@@ -7,7 +7,8 @@ import {
   loginRateLimiter,
   generateAccessToken,
   generateRefreshToken,
-  verifyRefreshToken
+  verifyRefreshToken,
+  csrfProtection // <--- AÑADIDO
 } from '../middlewares/security.js'
 import { NODE_ENV } from '../../config.js'
 
@@ -25,9 +26,8 @@ const cookieOptions = {
 
 // (Req: Sesión vs JWT)
 // GET /: Página principal.
-// Usa 'authenticate' para verificar si hay un token en la cookie.
-// 'csrfProtection' (de app.js) se aplica automáticamente.
-router.get('/', authenticate, (req, res) => {
+// Usa 'authenticate' PRIMERO, y 'csrfProtection' DESPUÉS.
+router.get('/', authenticate, csrfProtection, (req, res) => { // <--- AÑADIDO
   const user = req.session.user || null
   res.render('index', {
     username: user?.username || null,
@@ -38,7 +38,7 @@ router.get('/', authenticate, (req, res) => {
 
 // (Req: RBAC)
 // GET /protected: Página protegida solo para admins.
-router.get('/protected', authenticate, authorize(['admin']), (req, res) => {
+router.get('/protected', authenticate, csrfProtection, authorize(['admin']), (req, res) => { // <--- AÑADIDO
   res.render('protected', {
     user: req.session.user,
     csrfToken: req.csrfToken()
@@ -49,8 +49,7 @@ router.get('/protected', authenticate, authorize(['admin']), (req, res) => {
 
 // (Req: Registro, Fuerza Bruta)
 // POST /register: Creación de un nuevo usuario.
-// Protegido por Rate Limit y CSRF (desde app.js).
-router.post('/register', loginRateLimiter, async (req, res) => {
+router.post('/register', loginRateLimiter, csrfProtection, async (req, res) => { // <--- AÑADIDO
   const { username, email, password } = req.body
   try {
     // (Req: Hashing) El hash se hace dentro de 'create'
@@ -63,7 +62,7 @@ router.post('/register', loginRateLimiter, async (req, res) => {
 
 // (Req: Sesión Persistente, Fuerza Bruta)
 // POST /login-cookie: Flujo de inicio de sesión "tradicional".
-router.post('/login-cookie', loginRateLimiter, async (req, res) => {
+router.post('/login-cookie', loginRateLimiter, csrfProtection, async (req, res) => { // <--- AÑADIDO
   const { email, password } = req.body
   try {
     // (Req: Hashing) La comparación se hace dentro de 'login'
@@ -94,7 +93,7 @@ router.post('/login-cookie', loginRateLimiter, async (req, res) => {
 
 // (Req: Sesión JWT, Fuerza Bruta)
 // POST /login-jwt: Flujo "Stateless" para clientes que no usan cookies (ej. App móvil).
-// Nota: Esta ruta NO usa CSRF, ya que se asume un cliente sin cookies.
+// (Omitimos CSRF aquí intencionalmente)
 router.post('/login-jwt', loginRateLimiter, async (req, res) => {
   const { email, password } = req.body
   try {
@@ -118,7 +117,7 @@ router.post('/login-jwt', loginRateLimiter, async (req, res) => {
 
 // (Req: Eliminar Sesión)
 // POST /logout: Cierra la sesión del usuario.
-router.post('/logout', (req, res) => {
+router.post('/logout', csrfProtection, (req, res) => { // <--- AÑADIDO
   // Destruye la sesión de express-session
   req.session.destroy(err => {
     if (err) {
@@ -133,8 +132,7 @@ router.post('/logout', (req, res) => {
 
 // (Req: JWT)
 // POST /refresh: Permite al cliente obtener un nuevo access_token
-// usando un refresh_token válido.
-router.post('/refresh', (req, res) => {
+router.post('/refresh', csrfProtection, (req, res) => { // <--- AÑADIDO
   const refreshToken = req.cookies.refresh_token
   if (!refreshToken) return res.status(401).send('No hay refresh token')
 

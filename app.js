@@ -11,11 +11,11 @@ import SQLiteStore from 'connect-sqlite3' // Para sesiones en DB
 // Configuración local
 import { PORT, SECRET_JWT_KEY, NODE_ENV } from './config.js'
 
-// Middlewares de seguridad
-import { csrfProtection } from './src/middlewares/security.js'
+// --- Middlewares de seguridad ---
+// ¡HEMOS QUITADO 'csrfProtection' DE AQUÍ!
 
 // --- Importar Rutas ---
-import adminRoutes from './src/routes/admin.js' // <--- AÑADIDO
+import adminRoutes from './src/routes/admin.js'
 import authRoutes from './src/routes/auth.js'
 
 // Inicialización de la app
@@ -50,12 +50,12 @@ app.use(session({
 }))
 
 // --- 3. Configuración de Seguridad (Req: CSRF) ---
-// ¡Importante! csurf DEBE ir después de session y cookieParser.
-app.use(csrfProtection)
+// ¡LA LÍNEA app.use(csrfProtection) SE HA ELIMINADO!
+// Se aplicará en los archivos de rutas individuales.
 
 // --- 4. Rutas ---
 // (Req: RBAC) Rutas de admin, prefijadas con /admin
-app.use('/admin', adminRoutes); // <--- AÑADIDO
+app.use('/admin', adminRoutes);
 app.use('/', authRoutes);
 
 // --- 5. Manejador de Errores ---

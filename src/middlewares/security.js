@@ -117,9 +117,8 @@ export function authorize (allowedRoles = []) {
 
     if (!user || !allowed.includes((user.role || '').toLowerCase())) {
       // Usuario no logueado o no tiene el rol
-      const csrfToken = (typeof req.csrfToken === 'function') ? req.csrfToken() : null
-      // (Req: XSS) El escape de HTML se hará en la vista 'acceso-denegado.ejs'
-      return res.status(403).render('acceso-denegado', { csrfToken })
+      // FIX: No intentar pasar un token a la vista de error.
+      return res.status(403).render('acceso-denegado')
     }
 
     // Usuario autorizado, continuar.

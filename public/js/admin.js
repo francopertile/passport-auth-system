@@ -20,7 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const res = await fetch(`/admin/users/${id}`, {
           method: 'DELETE',
           headers: {
-            'CSRF-Token': CSRF_TOKEN // (Req: CSRF)
+            'x-csrf-token': CSRF_TOKEN // FIX: Nombre de cabecera correcto
           }
         });
 
@@ -51,7 +51,7 @@ document.addEventListener('DOMContentLoaded', () => {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'CSRF-Token': CSRF_TOKEN // (Req: CSRF)
+            'x-csrf-token': CSRF_TOKEN // FIX: Nombre de cabecera correcto
           },
           body: JSON.stringify({ role })
         });
