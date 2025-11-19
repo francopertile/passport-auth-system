@@ -1,61 +1,46 @@
-// src/routes/admin.js
-import express from 'express'
-import { UserRepository } from '../models/user-repository.js'
-// AÑADIDO: Importar csrfProtection
+import { Router } from 'express'
+import { body, param, validationResult } from 'express-validator'
+import * as adminController from '../controllers/adminController.js'
 import { authenticate, authorize, csrfProtection } from '../middlewares/security.js'
 
-const router = express.Router()
+const router = Router()
 
-// (Req: RBAC)
-// Aplicamos middlewares a TODAS las rutas en este archivo.
+// --- Seguridad Global del Router de Admin ---
+// Todas las rutas aquí requieren estar logueado, ser admin y tener token CSRF válido.
 router.use(authenticate)
 router.use(authorize(['admin']))
-// AÑADIDO: Aplicamos la protección CSRF a todo el router de admin
 router.use(csrfProtection)
 
-// (Req: RBAC)
-// GET /admin/users: Muestra el panel de administración de usuarios.
-router.get('/users', async (req, res) => {
-  try {
-    const users = await UserRepository.listAll()
-    // (Req: CSRF) Pasamos el token a la vista para las acciones (delete/update).
-    res.render('admin-users', {
-      users,
-      csrfToken: req.csrfToken()
-    })
-  } catch (err) {
-    res.status(500).send(err.message)
+// Helper de validación local
+const validate = (validations) => {
+  return async (req, res, next) => {
+    await Promise.all(validations.map(val => val.run(req)))
+    const errors = validationResult(req)
+    if (errors.isEmpty()) return next()
+    res.status(400).json({ errors: errors.array() })
   }
-})
+}
 
-// (Req: RBAC)
-// POST /admin/users/:id/role: Actualiza el rol de un usuario.
-router.post('/users/:id/role', async (req, res) => {
-  const { id } = req.params
-  const { role } = req.body
-  try {
-    await UserRepository.updateRole(id, role)
-    // Usamos 'res.json' para que el frontend (JS) reciba una confirmación
-    res.json({ message: 'Rol actualizado' })
-  } catch (err) {
-    res.status(400).send(err.message)
-  }
-})
+// 1. Panel Principal (Vista)
+router.get('/users', adminController.renderAdminPanel)
 
-// (Req: RBAC)
-// DELETE /admin/users/:id: Elimina un usuario.
-router.delete('/users/:id', async (req, res) => {
-  const { id } = req.params
-  try {
-    // No permitimos que un admin se elimine a sí mismo
-    if (id === req.session.user.id) {
-      return res.status(400).send('No puedes eliminarte a ti mismo.')
-    }
-    await UserRepository.delete(id)
-    res.json({ message: 'Usuario eliminado' })
-  } catch (err) {
-    res.status(400).send(err.message)
-  }
-})
+// 2. Actualizar Rol (API)
+router.post(
+  '/users/:id/role',
+  validate([
+    param('id').isUUID().withMessage('ID de usuario inválido'), // Evita inyección SQL en el ID
+    body('role').isIn(['user', 'admin']).withMessage('Rol no permitido')
+  ]),
+  adminController.updateUserRole
+)
+
+// 3. Eliminar Usuario (API)
+router.delete(
+  '/users/:id',
+  validate([
+    param('id').isUUID().withMessage('ID de usuario inválido')
+  ]),
+  adminController.deleteUser
+)
 
 export default router

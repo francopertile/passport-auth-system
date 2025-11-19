@@ -1,158 +1,72 @@
-// src/routes/auth.js
-import express from 'express'
-import { UserRepository } from '../models/user-repository.js'
+import { Router } from 'express'
+import { body, validationResult } from 'express-validator'
+import * as authController from '../controllers/authController.js'
 import {
+  loginRateLimiter,
   authenticate,
   authorize,
-  loginRateLimiter,
-  generateAccessToken,
-  generateRefreshToken,
-  verifyRefreshToken,
-  csrfProtection // <--- AÑADIDO
+  csrfProtection
 } from '../middlewares/security.js'
-import { NODE_ENV } from '../../config.js'
 
-const router = express.Router()
+const router = Router()
 
-// --- Configuración de Cookies Seguras ---
-// Opciones base para todas las cookies que emitamos
-const cookieOptions = {
-  httpOnly: true, // (Req: Cookies Seguras)
-  secure: NODE_ENV === 'production', // (Req: Cookies Seguras)
-  sameSite: 'strict', // (Req: Cookies Seguras)
+// Middleware helper para manejar errores de validación
+const validate = (validations) => {
+  return async (req, res, next) => {
+    await Promise.all(validations.map(validation => validation.run(req)))
+
+    const errors = validationResult(req)
+    if (errors.isEmpty()) {
+      return next()
+    }
+    // Si hay errores, devolvemos 400 Bad Request con los detalles
+    res.status(400).json({ errors: errors.array() })
+  }
 }
 
-// --- Rutas de Vistas ---
+// --- Vistas (Frontend Renderizado) ---
+// Estas rutas sirven el HTML inicial
+router.get('/', authenticate, csrfProtection, authController.renderIndex)
+router.get('/protected', authenticate, csrfProtection, authorize(['admin']), authController.renderProtected)
 
-// (Req: Sesión vs JWT)
-// GET /: Página principal.
-// Usa 'authenticate' PRIMERO, y 'csrfProtection' DESPUÉS.
-router.get('/', authenticate, csrfProtection, (req, res) => { // <--- AÑADIDO
-  const user = req.session.user || null
-  res.render('index', {
-    username: user?.username || null,
-    role: user?.role || null,
-    csrfToken: req.csrfToken() // (Req: CSRF) Pasa el token a la vista
-  })
-})
+// --- API Endpoints (JSON) ---
 
-// (Req: RBAC)
-// GET /protected: Página protegida solo para admins.
-router.get('/protected', authenticate, csrfProtection, authorize(['admin']), (req, res) => { // <--- AÑADIDO
-  res.render('protected', {
-    user: req.session.user,
-    csrfToken: req.csrfToken()
-  })
-})
+// 1. Registro
+router.post(
+  '/register',
+  loginRateLimiter, // Protección contra fuerza bruta
+  csrfProtection,   // Token anti-falsificación
+  validate([
+    body('username')
+      .trim()
+      .notEmpty().withMessage('El usuario es requerido')
+      .escape(), // (Req: XSS) Sanitización básica
+    body('email')
+      .isEmail().withMessage('Debe ser un email válido')
+      .normalizeEmail(), // Saneamiento (ej: quita puntos innecesarios en gmail)
+    body('password')
+      .isLength({ min: 6 }).withMessage('La contraseña debe tener al menos 6 caracteres')
+  ]),
+  authController.register
+)
 
-// --- Rutas de API de Autenticación ---
+// 2. Login Unificado (Reemplaza a login-cookie y login-jwt)
+router.post(
+  '/login',
+  loginRateLimiter,
+  csrfProtection,
+  validate([
+    body('email').isEmail().withMessage('Email inválido').normalizeEmail(),
+    body('password').notEmpty().withMessage('Contraseña requerida'),
+    body('authMode').isIn(['cookie', 'jwt']).withMessage('Modo de autenticación inválido')
+  ]),
+  authController.login
+)
 
-// (Req: Registro, Fuerza Bruta)
-// POST /register: Creación de un nuevo usuario.
-router.post('/register', loginRateLimiter, csrfProtection, async (req, res) => { // <--- AÑADIDO
-  const { username, email, password } = req.body
-  try {
-    // (Req: Hashing) El hash se hace dentro de 'create'
-    const id = await UserRepository.create({ username, email, password })
-    res.status(201).send({ id })
-  } catch (err) {
-    res.status(400).send(err.message)
-  }
-})
+// 3. Logout
+router.post('/logout', csrfProtection, authController.logout)
 
-// (Req: Sesión Persistente, Fuerza Bruta)
-// POST /login-cookie: Flujo de inicio de sesión "tradicional".
-router.post('/login-cookie', loginRateLimiter, csrfProtection, async (req, res) => { // <--- AÑADIDO
-  const { email, password } = req.body
-  try {
-    // (Req: Hashing) La comparación se hace dentro de 'login'
-    const user = await UserRepository.login({ email, password })
-
-    // Guardamos al usuario en la sesión de express-session
-    req.session.user = { id: user.id, username: user.username, email: user.email, role: user.role }
-
-    // (Req: JWT) Generamos ambos tokens
-    const accessToken = generateAccessToken(req.session.user)
-    const refreshToken = generateRefreshToken(req.session.user)
-
-    // (Req: Cookies Seguras) Emitimos los tokens como cookies httpOnly
-    res
-      .cookie('access_token', accessToken, {
-        ...cookieOptions,
-        maxAge: 1000 * 60 * 15 // 15 minutos
-      })
-      .cookie('refresh_token', refreshToken, {
-        ...cookieOptions,
-        maxAge: 1000 * 60 * 60 * 24 * 7 // 7 días
-      })
-      .send({ user, mode: 'cookie-session' })
-  } catch (err) {
-    res.status(401).send(err.message)
-  }
-})
-
-// (Req: Sesión JWT, Fuerza Bruta)
-// POST /login-jwt: Flujo "Stateless" para clientes que no usan cookies (ej. App móvil).
-// (Omitimos CSRF aquí intencionalmente)
-router.post('/login-jwt', loginRateLimiter, async (req, res) => {
-  const { email, password } = req.body
-  try {
-    const user = await UserRepository.login({ email, password })
-
-    // (Req: JWT) Generamos ambos tokens
-    const accessToken = generateAccessToken({ id: user.id, username: user.username, email: user.email, role: user.role })
-    const refreshToken = generateRefreshToken({ id: user.id, username: user.username, email: user.email, role: user.role })
-
-    // (Req: JWT) Devolvemos los tokens en el JSON, el cliente los guarda.
-    res.send({
-      user,
-      mode: 'jwt-stateless',
-      accessToken,
-      refreshToken
-    })
-  } catch (err) {
-    res.status(401).send(err.message)
-  }
-})
-
-// (Req: Eliminar Sesión)
-// POST /logout: Cierra la sesión del usuario.
-router.post('/logout', csrfProtection, (req, res) => { // <--- AÑADIDO
-  // Destruye la sesión de express-session
-  req.session.destroy(err => {
-    if (err) {
-      return res.status(500).send('Error al cerrar sesión')
-    }
-    // (Req: Eliminar Sesión) Limpiamos las cookies de tokens
-    res.clearCookie('access_token')
-    res.clearCookie('refresh_token')
-    res.send({ message: 'Sesión cerrada' })
-  })
-})
-
-// (Req: JWT)
-// POST /refresh: Permite al cliente obtener un nuevo access_token
-router.post('/refresh', csrfProtection, (req, res) => { // <--- AÑADIDO
-  const refreshToken = req.cookies.refresh_token
-  if (!refreshToken) return res.status(401).send('No hay refresh token')
-
-  try {
-    const userData = verifyRefreshToken(refreshToken)
-    const newAccessToken = generateAccessToken(userData)
-
-    // (Req: Cookies Seguras) Re-emitimos el access token
-    res
-      .cookie('access_token', newAccessToken, {
-        ...cookieOptions,
-        maxAge: 1000 * 60 * 15 // 15 minutos
-      })
-      .send({ message: 'Token renovado' })
-  } catch (err) {
-    // Si el refresh token es inválido o expiró, forzamos logout
-    res.clearCookie('access_token')
-    res.clearCookie('refresh_token')
-    res.status(403).send('Refresh token inválido o expirado')
-  }
-})
+// 4. Refresh Token (Solo para JWT)
+router.post('/refresh', csrfProtection, authController.refreshToken)
 
 export default router
