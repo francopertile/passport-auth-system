@@ -1,48 +1,102 @@
-# Auth System Challenge (Sistema de Autenticación Híbrido)
+# 🛡️ Sistema de Autenticación Híbrido
 
-Este proyecto es una aplicación web Node.js construida como solución al "Passport Auth System Challenge". Demuestra una implementación de un sistema de autenticación robusto y seguro desde cero, comparando dos enfoques principales: sesiones persistentes (manejadas por el servidor) y autenticación sin estado (stateless) usando JSON Web Tokens (JWT).
+Un sistema de autenticación robusto y listo para producción construido con **Node.js** y **Express v5**. Este proyecto implementa una **Estrategia de Autenticación Híbrida** segura, soportando flujos con estado (Sesión/Cookie) y sin estado (JWT) dentro de una **Arquitectura MVC** modular.
 
-El sistema está construido con un enfoque de **seguridad primero**, implementando todos los requisitos obligatorios del desafío.
+![Node.js](https://img.shields.io/badge/Node.js-v20+-green.svg) ![Express](https://img.shields.io/badge/Express-v5.0-blue.svg) ![Security](https://img.shields.io/badge/Security-OWASP%20Hardened-red.svg) ![Architecture](https://img.shields.io/badge/Architecture-MVC-orange.svg)
 
-## 🚀 Características Principales
+## 📋 Descripción General
 
-Este proyecto implementa las siguientes características de seguridad y funcionalidad:
+Este repositorio resuelve el "Passport Challenge" superando los requisitos básicos. Aborda problemas críticos comunes en implementaciones de Node.js/SQLite —específicamente los **bloqueos de concurrencia en base de datos**— mediante la segregación de las capas de persistencia.
 
-* **Autenticación Híbrida:**
-    * **1. Sesión Persistente (Cookie):** Un flujo de inicio de sesión tradicional que utiliza `express-session` para crear una sesión en el servidor, almacenada en una base de datos SQLite (`connect-sqlite3`).
-    * **2. JWT Stateless (Token):** Un flujo de inicio de sesión (`/login-jwt`) que devuelve un `accessToken` y `refreshToken` al cliente, ideal para APIs consumidas por aplicaciones móviles o SPAs (Single Page Applications).
-* **Hashing de Contraseñas:** (Requisito ✅) Las contraseñas se hashean de forma segura usando **bcrypt.js** (`SALT_ROUNDS = 10`) antes de almacenarse en la base de datos. En ningún momento se almacenan en texto plano.
-* **Control de Acceso Basado en Roles (RBAC):** (Requisito ✅)
-    * **Usuario (`user`):** Rol por defecto con permisos básicos.
-    * **Administrador (`admin`):** Rol con acceso a un panel de administración (`/admin/users`) para ver, actualizar roles y eliminar otros usuarios.
-* **Protección CSRF (Cross-Site Request Forgery):** (Requisito ✅) Todas las rutas que modifican el estado (login, registro, logout, y todas las acciones de admin) están protegidas por un middleware (`csurf`) que valida un token anti-CSRF único por sesión.
-* **Prevención de Fuerza Bruta:** (Requisito ✅) Las rutas de inicio de sesión (`/login-cookie` y `/login-jwt`) están protegidas con `express-rate-limit` para bloquear IPs después de múltiples intentos fallidos.
-* **Cookies Seguras:** (Requisito ✅) Todas las cookies emitidas por la aplicación (sesión, CSRF y tokens JWT) están configuradas con las flags `httpOnly`, `secure` (en producción) y `sameSite: 'strict'`.
-* **Prevención de XSS (Cross-Site Scripting):** (Requisito ✅) Todos los datos dinámicos renderizados en las vistas EJS (como nombres de usuario, roles, etc.) se escapan usando la sintaxis `<%= ... %>` de EJS para prevenir la inyección de HTML o scripts.
+Está diseñado para simular un escenario real donde una aplicación debe servir tanto a clientes basados en navegador (vía sesiones seguras) como a clientes externos o aplicaciones móviles (vía JWTs), sin comprometer la seguridad ni la mantenibilidad.
 
-## 🛠 Stack Tecnológico
+## 🚀 Características Clave
 
-* **Backend:** Node.js, Express.js
-* **Base de Datos:** better-sqlite3
-* **Manejo de Sesiones:** express-session, connect-sqlite3
-* **Autenticación:** jsonwebtoken (JWT), bcryptjs (Hashing)
-* **Seguridad:** csurf (CSRF), express-rate-limit (Fuerza Bruta)
-* **Frontend:** EJS (Server-Side Rendering), Bootstrap 5 (para estilos)
+### 🔐 Autenticación Híbrida
+* **Sesión con Estado (Stateful):** Sesiones tradicionales del lado del servidor usando `express-session` con almacenamiento persistente en SQLite (`connect-sqlite3`).
+* **JWT Sin Estado (Stateless):** Implementación segura de JSON Web Tokens.
+    * **Access Token:** De vida corta, enviado en el cuerpo JSON.
+    * **Refresh Token:** De vida larga, almacenado estrictamente en una **Cookie `HttpOnly`** para prevenir ataques XSS.
 
-## ⚙️ (Futuro) Uso e Instalación
+### 🏗️ Arquitectura Escalable
+* **Patrón MVC:** Separación completa de responsabilidades. La lógica reside en `controllers`, el enrutamiento en `routes` y el acceso a datos en `models`.
+* **Segregación de Base de Datos:** Resuelve los problemas de bloqueo WAL de SQLite separando `users.db` (Datos de Negocio) de `sessions.db` (Datos Efímeros).
+* **Interceptor del Cliente:** Un cliente inteligente en JS Vanilla que maneja la inyección de tokens y el **auto-refresco silencioso** ante errores 401.
 
-1.  Clonar el repositorio.
-2.  Instalar las dependencias:
+### 🛡️ Seguridad Primero (Security First)
+* **Saneamiento de Entradas:** Validación rigurosa usando `express-validator` para prevenir inyecciones.
+* **Protección contra Fuerza Bruta:** Rate limiting (límite de velocidad) en endpoints sensibles (`/login`, `/register`).
+* **Cabeceras Seguras:** Implementadas vía `helmet` (HSTS, X-Frame-Options, etc.).
+* **Protección CSRF:** Patrón de "Double-submit cookie" para prevenir la falsificación de peticiones en sitios cruzados.
+* **Hashing de Contraseñas:** Implementación del estándar de la industria `bcrypt`.
+
+## 🛠️ Stack Tecnológico
+
+* **Core:** Node.js, Express v5 (Router)
+* **Base de Datos:** `better-sqlite3` (Datos de Usuario), `connect-sqlite3` (Almacén de Sesiones)
+* **Seguridad:** `helmet`, `csurf`, `express-rate-limit`, `bcryptjs`, `express-validator`
+* **Auth:** `jsonwebtoken`, `express-session`
+* **Frontend:** EJS (Renderizado en Servidor), Bootstrap 5
+
+## ⚙️ Instalación y Configuración
+
+Este proyecto incluye un **script de sembrado (seeding)** para inicializar la infraestructura automáticamente.
+
+1.  **Clonar el repositorio:**
+    ```bash
+    git clone [https://github.com/francopertile/passport-auth-system.git](https://github.com/francopertile/passport-auth-system.git)
+    cd passport-auth-system
+    ```
+
+2.  **Instalar Dependencias:**
     ```bash
     npm install
     ```
-3.  Iniciar el servidor de desarrollo:
+
+3.  **Configuración de Entorno:**
+    Crea un archivo `.env` en la raíz (o usa los valores por defecto de `config.js` para desarrollo):
+    ```env
+    NODE_ENV=development
+    PORT=3000
+    SALT_ROUNDS=10
+    SECRET_JWT_KEY=super-clave-secreta-access
+    REFRESH_SECRET=super-clave-secreta-refresh
+    ```
+
+4.  **Inicializar y Sembrar Base de Datos:**
+    Este comando crea la carpeta `data/` y la puebla con usuarios de prueba.
+    ```bash
+    npm run seed
+    ```
+
+5.  **Iniciar el Servidor:**
     ```bash
     npm run dev
     ```
-    *(Añadiremos este script a `package.json` en un próximo commit).*
 
-4.  Acceder a `http://localhost:3000` en el navegador.
+## 🧪 Probando el Sistema
 
----
-*Proyecto creado por Franco Pertile, basado en el desafío de autenticación.*
+Una vez que el servidor esté corriendo en `http://localhost:3000`:
+
+### Credenciales por Defecto (del Seed)
+| Rol | Email | Contraseña |
+| :--- | :--- | :--- |
+| **Admin** | `admin@test.com` | `password123` |
+| **Usuario** | `user@test.com` | `password123` |
+
+*También puedes registrar nuevos usuarios a través del Formulario de Registro.*
+
+## 📂 Estructura del Proyecto
+
+```text
+src/
+├── controllers/      # Lógica de negocio (Auth, Admin)
+├── middlewares/      # Seguridad, Auth, Validación
+├── models/           # Capa de Acceso a Datos (DAO)
+├── routes/           # Definiciones de API y Vistas
+├── db.js             # Conexión y configuración de DB
+└── index.js          # Punto de entrada
+public/
+└── js/               # Cliente Inteligente (Fetch Interceptor)
+data/                 # Archivos SQLite (Generados por seed)
+scripts/              # Scripts de utilidad (Seeding, Mantenimiento)
