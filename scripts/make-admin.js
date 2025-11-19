@@ -1,12 +1,11 @@
 /*
- * make-admin.js
+ * scripts/make-admin.js
  * Script de utilidad para promover un usuario a 'admin'.
- * * Uso (en otra PC con Node.js):
- * npm run make-admin -- tu-email@ejemplo.com
+ * Uso: npm run make-admin -- tu-email@ejemplo.com
  */
 
-import { UserRepository } from './src/models/user-repository.js'
-import db from './src/db.js'
+import { UserRepository } from '../src/models/user-repository.js' // Nota el '..'
+import db from '../src/db.js' // Nota el '..'
 
 async function makeAdmin (email) {
   if (!email) {
@@ -18,7 +17,7 @@ async function makeAdmin (email) {
   try {
     console.log(`Buscando usuario con email: ${email}...`)
     
-    // Usamos una consulta directa de 'better-sqlite3' para encontrar al usuario
+    // Usamos una consulta directa de 'better-sqlite3'
     const user = db.prepare('SELECT id, username, role FROM users WHERE email = ?').get(email)
 
     if (!user) {
@@ -40,6 +39,5 @@ async function makeAdmin (email) {
 }
 
 // Obtenemos el email del argumento de la línea de comandos
-// process.argv[2] será el primer argumento después de 'node make-admin.js'
 const emailToPromote = process.argv[2]
 makeAdmin(emailToPromote)
