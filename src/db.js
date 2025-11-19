@@ -1,16 +1,15 @@
-// src/db.js
 import Database from 'better-sqlite3'
+import path from 'node:path'
 
-// Tu .gitignore ya está configurado para ignorar archivos *.db
-// Esta línea crea o abre el archivo de base de datos en la raíz del proyecto.
-const db = new Database('main.db', { verbose: console.log })
+// Apuntamos a la carpeta 'data' para mantener el orden
+const dbPath = path.join(process.cwd(), 'data', 'users.db')
 
-// PRAGMAS recomendados para WAL (Write-Ahead Logging)
-// Mejora la concurrencia (múltiples lecturas y una escritura al mismo tiempo).
-db.pragma('journal_mode = WAL');
+const db = new Database(dbPath, { verbose: console.log })
 
-// (Req: RBAC) Creamos la tabla de usuarios.
-// Usamos el esquema de 'ortiz-ivan' que incluye email.
+// Mejor rendimiento
+db.pragma('journal_mode = WAL')
+
+// Crear tabla de usuarios (Solo usuarios, nada de sesiones aquí)
 db.exec(`
   CREATE TABLE IF NOT EXISTS users (
     id TEXT PRIMARY KEY,
@@ -21,16 +20,6 @@ db.exec(`
   )
 `)
 
-// (Req: Sesión Persistente) Creamos la tabla para las sesiones.
-// Esta tabla es la que usará 'connect-sqlite3' para guardar las sesiones.
-db.exec(`
-  CREATE TABLE IF NOT EXISTS sessions (
-    sid TEXT PRIMARY KEY,
-    expired INTEGER NOT NULL,
-    sess TEXT NOT NULL
-  )
-`);
-
-console.log('Base de datos y tablas inicializadas.');
+console.log(`[DB] Base de datos de usuarios conectada en: ${dbPath}`)
 
 export default db

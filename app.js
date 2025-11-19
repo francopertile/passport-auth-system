@@ -1,80 +1,76 @@
-/*
- * app.js
- * Punto de entrada principal del servidor.
- * Configura los middlewares globales y arranca la aplicación.
- */
+import 'dotenv/config' // Carga variables de entorno al inicio
 import express from 'express'
 import cookieParser from 'cookie-parser'
 import session from 'express-session'
-import SQLiteStore from 'connect-sqlite3' // Para sesiones en DB
+import SQLiteStoreFactory from 'connect-sqlite3'
+import helmet from 'helmet'
+import path from 'node:path'
 
 // Configuración local
 import { PORT, SECRET_JWT_KEY, NODE_ENV } from './config.js'
 
-// --- Middlewares de seguridad ---
-// ¡HEMOS QUITADO 'csrfProtection' DE AQUÍ!
-
-// --- Importar Rutas ---
+// Importar Rutas
 import adminRoutes from './src/routes/admin.js'
 import authRoutes from './src/routes/auth.js'
 
-// Inicialización de la app
 const app = express()
+const SQLiteStore = SQLiteStoreFactory(session)
 
-// --- 1. Configuración de Vistas y Middlewares Globales ---
+// 1. Seguridad y Configuración Básica
+app.use(helmet()) // Protege cabeceras HTTP automáticamente
 app.set('view engine', 'ejs')
-app.use(express.json()) // Parsea body de JSON
-app.use(express.urlencoded({ extended: false })) // Parsea body de formularios
-app.use(cookieParser()) // Parsea cookies
-app.use(express.static('public')) // Sirve archivos estáticos (CSS, JS cliente)
 
-// --- 2. Configuración de Sesión (Req: Sesión Persistente) ---
-const SQLiteStoreSession = SQLiteStore(session)
+// Permitir que bootstrap y estilos carguen (Helmet a veces bloquea CDNs externos)
+app.use(
+  helmet.contentSecurityPolicy({
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "cdn.jsdelivr.net"],
+      styleSrc: ["'self'", "'unsafe-inline'", "cdn.jsdelivr.net"],
+    },
+  })
+)
 
+app.use(express.json())
+app.use(express.urlencoded({ extended: false }))
+app.use(cookieParser())
+app.use(express.static('public'))
+
+// 2. Configuración de Sesión (EL HOTFIX: Archivo separado)
 app.use(session({
-  // (Req: Sesión Persistente) Guarda sesiones en la tabla 'sessions' de 'main.db'
-  store: new SQLiteStoreSession({
-    db: 'main.db', // Usa la misma DB principal que creamos
+  store: new SQLiteStore({
+    db: 'sessions.db',     // Nombre distinto al de usuarios
+    dir: './data',         // Guardado en la carpeta data
     table: 'sessions',
-    dir: './',
+    concurrentDB: true
   }),
-  secret: SECRET_JWT_KEY, // Clave para firmar la cookie de sesión
-  resave: false, // No volver a guardar si no hay cambios
-  saveUninitialized: false, // No crear sesiones vacías
+  secret: SECRET_JWT_KEY,
+  resave: false,
+  saveUninitialized: false,
   cookie: {
     maxAge: 1000 * 60 * 60 * 24, // 1 día
-    httpOnly: true, // (Req: Cookies Seguras)
-    secure: NODE_ENV === 'production', // (Req: Cookies Seguras)
-    sameSite: 'strict', // (Req: CSRF / Cookies Seguras)
+    httpOnly: true,
+    secure: NODE_ENV === 'production',
+    sameSite: 'strict'
   }
 }))
 
-// --- 3. Configuración de Seguridad (Req: CSRF) ---
-// ¡LA LÍNEA app.use(csrfProtection) SE HA ELIMINADO!
-// Se aplicará en los archivos de rutas individuales.
+// 3. Rutas
+app.use('/admin', adminRoutes)
+app.use('/', authRoutes)
 
-// --- 4. Rutas ---
-// (Req: RBAC) Rutas de admin, prefijadas con /admin
-app.use('/admin', adminRoutes);
-app.use('/', authRoutes);
-
-// --- 5. Manejador de Errores ---
+// 4. Manejo de Errores Global
 app.use((err, req, res, next) => {
   console.error(err.stack)
-
-  // (Req: CSRF) Manejo de error específico para tokens CSRF inválidos
   if (err.code === 'EBADCSRFTOKEN') {
-    // (Req: XSS) El escape se hará en la vista
-    return res.status(403).render('acceso-denegado', { csrfToken: req.csrfToken() })
+    return res.status(403).render('acceso-denegado', { csrfToken: req.csrfToken ? req.csrfToken() : null })
   }
-
-  res.status(500).send('Algo salió mal en el servidor.')
+  res.status(500).send('Error interno del servidor')
 })
 
-// --- 6. Iniciar Servidor ---
+// 5. Iniciar
 app.listen(PORT, () => {
   console.log(`Servidor corriendo en http://localhost:${PORT}`)
 })
 
-// Exportamos 'app' por si queremos usarla en tests (buena práctica)
 export default app
