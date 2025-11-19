@@ -1,5 +1,5 @@
 /**
- * Jimeván Client - Lógica de Frontend
+ * Client - Lógica de Frontend
  * Maneja la autenticación híbrida (Cookie/JWT) y el ciclo de vida de los tokens.
  */
 

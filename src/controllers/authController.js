@@ -60,7 +60,7 @@ export const login = async (req, res) => {
     const accessToken = generateAccessToken(user)
     const refreshToken = generateRefreshToken(user)
 
-    // La cookie de refresh es HttpOnly (Seguridad Jimeván)
+    // La cookie de refresh es HttpOnly (Seguridad)
     // El cliente NO puede leer esto con JS, previene robo XSS
     res.cookie('refresh_token', refreshToken, jwtCookieOptions)
 
